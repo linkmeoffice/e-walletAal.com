@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NexPay — Wallet</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --bg:#f7f8fb; --card:#fff; --card2:#f1f3f8; --line:#e6e9f0; --line2:#d8dde8;
+    --text:#0d1220; --muted:#7a8399;
+    --acc:#0ea472; --acc-light:#e6f6ef;
+    --blue:#2563eb; --blue-light:#e8efff;
+    --red:#e5484d; --red-light:#fdecec;
+    --orange:#f59e0b; --orange-light:#fef5e0;
+    --purple:#9333ea; --purple-light:#f3e8ff;
+    --shadow:0 2px 8px rgba(20,30,60,.05);
+    --shadow-lg:0 12px 32px rgba(20,30,60,.1);
+    --ai-header-bg:linear-gradient(135deg,#f0fdf9,#eef4ff);
+    --insight-bg:linear-gradient(135deg,#fff,#f8fafc);
+    --info-bg:linear-gradient(135deg,#fff9e6,#fff);
+    --info-border:#fce8b2; --info-text:#7c5a12; --info-ico:#fce8b2;
+    --overlay-bg:rgba(13,18,32,.45);
+    --hint-bg:rgba(255,255,255,.6);
+    --blob-opacity:.35;
+  }
+
+  body.dark {
+    --bg:#0a0e17; --card:#131824; --card2:#1a2030; --line:#242b3d; --line2:#2f3950;
+    --text:#e8ecf5; --muted:#8b93a8;
+    --acc:#00d9a3; --acc-light:rgba(0,217,163,.14);
+    --blue:#4d8bff; --blue-light:rgba(77,139,255,.14);
+    --red:#ff6b7d; --red-light:rgba(255,107,125,.14);
+    --orange:#ffb84d; --orange-light:rgba(255,184,77,.14);
+    --purple:#c084fc; --purple-light:rgba(192,132,252,.14);
+    --shadow:0 2px 8px rgba(0,0,0,.3);
+    --shadow-lg:0 12px 32px rgba(0,0,0,.4);
+    --ai-header-bg:linear-gradient(135deg,#0d1a24,#141b30);
+    --insight-bg:linear-gradient(135deg,#1a2030,#151b2a);
+    --info-bg:linear-gradient(135deg,#2a2416,#1a1810);
+    --info-border:#3d3320; --info-text:#f0d089; --info-ico:#3d3320;
+    --overlay-bg:rgba(0,0,0,.65);
+    --hint-bg:rgba(255,255,255,.06);
+    --blob-opacity:.18;
+  }
+
+  body {
+    font-family:-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    transition: background .5s cubic-bezier(.2,.9,.3,1), color .5s cubic-bezier(.2,.9,.3,1);
+  }
+
+  /* Ambient */
+  .ambient { position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; transition: opacity .5s; }
+  .blob { position:absolute; border-radius:50%; filter:blur(60px); opacity:var(--blob-opacity); transition: opacity .5s; }
+  .blob.b1 { width:320px;height:320px;background:radial-gradient(circle,#a7f3d0,transparent 70%);top:-80px;left:-80px;animation:float1 18s ease-in-out infinite; }
+  .blob.b2 { width:280px;height:280px;background:radial-gradient(circle,#bfdbfe,transparent 70%);bottom:20%;right:-100px;animation:float2 22s ease-in-out infinite; }
+  .blob.b3 { width:240px;height:240px;background:radial-gradient(circle,#fed7aa,transparent 70%);bottom:-80px;left:20%;animation:float3 20s ease-in-out infinite; }
+  body.dark .blob.b1 { background:radial-gradient(circle,#0ea472,transparent 70%); }
+  body.dark .blob.b2 { background:radial-gradient(circle,#2563eb,transparent 70%); }
+  body.dark .blob.b3 { background:radial-gradient(circle,#9333ea,transparent 70%); }
+  @keyframes float1{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(60px,40px) scale(1.1);}}
+  @keyframes float2{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-50px,-30px) scale(1.15);}}
+  @keyframes float3{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(40px,-50px) scale(.9);}}
+
+  /* Theme toggle */
+  .theme-toggle {
+    position: fixed;
+    top: 16px; right: 16px;
+    z-index: 91;
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: all .35s cubic-bezier(.2,.9,.3,1);
+    overflow: hidden;
+  }
+  .theme-toggle:hover { transform: translateY(-2px) rotate(-8deg); box-shadow: var(--shadow-lg); border-color: var(--acc); }
+  .theme-toggle:active { transform: scale(.9); }
+  .theme-toggle .icon-wrap {
+    position: relative;
+    width: 22px; height: 22px;
+  }
+  .theme-toggle .icon {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    transition: transform .5s cubic-bezier(.2,1.4,.5,1), opacity .4s;
+  }
+  .theme-toggle .sun { opacity: 0; transform: rotate(-90deg) scale(.5); }
+  .theme-toggle .moon { opacity: 1; transform: rotate(0) scale(1); }
+  body.dark .theme-toggle .sun { opacity: 1; transform: rotate(0) scale(1); }
+  body.dark .theme-toggle .moon { opacity: 0; transform: rotate(90deg) scale(.5); }
+
+  /* Toggle posisikan agar tidak nabrak di login */
+  #loginScreen .theme-toggle { top: 20px; right: 20px; }
+
+  #loginScreen { display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px 20px;max-width:440px;margin:0 auto;position:relative;z-index:1; }
+  .logo { display:flex;align-items:center;gap:12px;margin-bottom:40px;justify-content:center;animation:slideDown .7s cubic-bezier(.2,.9,.3,1) both; }
+  @keyframes slideDown{from{opacity:0;transform:translateY(-24px);}}
+  .logo-mark { width:56px;height:56px;border-radius:17px;background:linear-gradient(135deg,#0ea472,#2563eb);display:grid;place-items:center;font-size:26px;font-weight:800;color:#fff;box-shadow:0 10px 24px rgba(14,164,114,.35);position:relative;overflow:hidden;animation:logoFloat 3s ease-in-out infinite; }
+  @keyframes logoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
+  .logo-mark::after { content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);animation:shine 3s infinite; }
+  @keyframes shine{0%{left:-100%;}50%,100%{left:100%;}}
+  .logo-text { font-size:27px;font-weight:700;letter-spacing:-.6px;color:var(--text); }
+  .logo-text span { color:var(--acc); }
+  .login-box h2 { font-size:27px;margin-bottom:8px;letter-spacing:-.5px;font-weight:700;animation:slideUp .7s .1s cubic-bezier(.2,.9,.3,1) both; }
+  .login-box p { color:var(--muted);font-size:14px;margin-bottom:30px;animation:slideUp .7s .2s cubic-bezier(.2,.9,.3,1) both; }
+  @keyframes slideUp{from{opacity:0;transform:translateY(20px);}}
+  .field { margin-bottom:16px;animation:slideUp .7s cubic-bezier(.2,.9,.3,1) both; }
+  .field:nth-child(1){animation-delay:.3s;} .field:nth-child(2){animation-delay:.4s;}
+  .login-box .btn-primary { animation:slideUp .7s .5s cubic-bezier(.2,.9,.3,1) both; }
+  .field label { display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.2px;transition:color .2s; }
+  .field:focus-within label { color:var(--acc); }
+  .field input { width:100%;padding:15px 16px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;color:var(--text);font-size:15px;outline:none;transition:all .25s cubic-bezier(.2,.9,.3,1);font-family:inherit;box-shadow:var(--shadow); }
+  .field input:focus { border-color:var(--acc);box-shadow:0 0 0 4px rgba(14,164,114,.12),0 4px 14px rgba(14,164,114,.1);transform:translateY(-1px); }
+  .field input::placeholder { color:var(--muted);opacity:.6; }
+  .btn { width:100%;padding:16px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s cubic-bezier(.2,.9,.3,1);letter-spacing:.2px;position:relative;overflow:hidden; }
+  .btn-primary { background:linear-gradient(135deg,#0ea472,#2563eb);background-size:200% 200%;color:#fff;box-shadow:0 8px 20px rgba(14,164,114,.28);animation:gradientShift 4s ease infinite; }
+  @keyframes gradientShift{0%,100%{background-position:0% 50%;}50%{background-position:100% 50%;}}
+  .btn-primary:hover { box-shadow:0 12px 26px rgba(14,164,114,.4);transform:translateY(-1px); }
+  .btn-primary:active { transform:scale(.97) translateY(0); }
+
+  .app { max-width:440px;margin:0 auto;min-height:100vh;padding:22px 20px 140px;position:relative;z-index:1; }
+  .header { display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;animation:slideUp .5s cubic-bezier(.2,.9,.3,1) both;padding-right:56px; }
+  .greet-wrap { display:flex;align-items:center;gap:12px; }
+  .avatar { width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0ea472,#2563eb);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;letter-spacing:-.5px;position:relative;transition:transform .3s cubic-bezier(.2,1.4,.5,1); }
+  .avatar:hover { transform:rotate(-5deg) scale(1.05); }
+  .avatar::after { content:'';position:absolute;inset:-3px;border-radius:17px;background:linear-gradient(135deg,#0ea472,#2563eb);opacity:.25;z-index:-1;animation:avatarPulse 2.5s ease-in-out infinite; }
+  @keyframes avatarPulse{0%,100%{transform:scale(1);opacity:.25;}50%{transform:scale(1.15);opacity:0;}}
+  .greet-small { font-size:11px;color:var(--muted);margin-bottom:2px; }
+  .greet-name { font-size:15px;font-weight:700;letter-spacing:-.2px; }
+  .logout-btn { background:var(--card);border:1.5px solid var(--line);color:var(--muted);width:42px;height:42px;border-radius:13px;display:grid;place-items:center;cursor:pointer;transition:all .25s cubic-bezier(.2,.9,.3,1);font-size:16px;box-shadow:var(--shadow); }
+  .logout-btn:hover { color:var(--red);border-color:var(--red-light);background:var(--red-light);transform:rotate(-8deg); }
+  .logout-btn:active { transform:scale(.9) rotate(-8deg); }
+
+  .balance-card { background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:24px 22px;position:relative;overflow:hidden;margin-bottom:18px;box-shadow:var(--shadow);animation:slideUp .5s .05s cubic-bezier(.2,.9,.3,1) both;transition:transform .3s cubic-bezier(.2,.9,.3,1),box-shadow .3s, background .5s, border-color .5s; }
+  .balance-card:hover { transform:translateY(-2px);box-shadow:var(--shadow-lg); }
+  .balance-card::before { content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#0ea472,#2563eb,#0ea472);background-size:200% 100%;animation:gradientSlide 4s linear infinite; }
+  @keyframes gradientSlide{0%{background-position:0% 0;}100%{background-position:200% 0;}}
+  .balance-card::after { content:'';position:absolute;top:-50%;right:-20%;width:200px;height:200px;background:radial-gradient(circle,rgba(14,164,114,.1),transparent 70%);pointer-events:none;animation:float2 12s ease-in-out infinite; }
+  body.dark .balance-card::after { background:radial-gradient(circle,rgba(0,217,163,.15),transparent 70%); }
+  .bal-label { font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;position:relative; }
+  .bal-label .dot { width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px rgba(14,164,114,.15);animation:pulse 2s infinite; }
+  @keyframes pulse{50%{box-shadow:0 0 0 8px rgba(14,164,114,0);}}
+  .bal-amount { font-size:36px;font-weight:800;letter-spacing:-1.5px;display:flex;align-items:baseline;gap:5px;color:var(--text);position:relative;transition:color .3s; }
+  .bal-amount.bump { animation:bump .5s cubic-bezier(.2,1.4,.5,1); }
+  @keyframes bump{0%{transform:scale(1);}40%{transform:scale(1.08);color:var(--acc);}100%{transform:scale(1);}}
+  .bal-amount .cur { font-size:16px;font-weight:600;color:var(--muted);letter-spacing:0; }
+  .bal-id { font-size:12px;color:var(--muted);margin-top:10px;font-family:'SF Mono','Courier New',monospace;letter-spacing:1.5px;position:relative; }
+
+  .actions { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;animation:slideUp .5s .1s cubic-bezier(.2,.9,.3,1) both; }
+  .action { background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:13px 6px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:all .25s cubic-bezier(.2,.9,.3,1);font-size:11px;color:var(--text);font-weight:600;box-shadow:var(--shadow); }
+  .action:hover { transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:var(--acc); }
+  .action:active { transform:scale(.94) translateY(0); }
+  .action .ico { width:34px;height:34px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:16px;font-weight:700;color:var(--text);transition:transform .3s cubic-bezier(.2,1.4,.5,1); }
+  .action:hover .ico { transform:scale(1.1) rotate(-5deg); }
+  .action:nth-child(1) .ico { background:var(--acc-light);color:var(--acc); }
+  .action:nth-child(2) .ico { background:var(--blue-light);color:var(--blue); }
+  .action:nth-child(3) .ico { background:var(--orange-light);color:var(--orange); }
+  .action:nth-child(4) .ico { background:var(--purple-light);color:var(--purple); }
+
+  .info-strip { background:var(--info-bg);border:1.5px solid var(--info-border);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:18px;font-size:12px;color:var(--info-text);line-height:1.4;animation:slideUp .5s .15s cubic-bezier(.2,.9,.3,1) both;position:relative;overflow:hidden;transition: background .5s, border-color .5s, color .5s; }
+  .info-strip::before { content:'';position:absolute;top:0;left:-100%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);animation:sweep 4s infinite; }
+  body.dark .info-strip::before { background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent); }
+  @keyframes sweep{0%{left:-100%;}60%,100%{left:200%;}}
+  .info-strip .ico { width:26px;height:26px;border-radius:8px;background:var(--info-ico);display:grid;place-items:center;font-size:13px;flex-shrink:0;animation:wiggle 3s ease-in-out infinite; }
+  @keyframes wiggle{0%,100%{transform:rotate(0);}25%{transform:rotate(-10deg);}75%{transform:rotate(10deg);}}
+
+  .sec-title { display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;animation:slideUp .5s .2s cubic-bezier(.2,.9,.3,1) both; }
+  .sec-title h3 { font-size:15px;font-weight:700;letter-spacing:-.2px; }
+  .sec-title span { font-size:12px;color:var(--muted);font-weight:500; }
+
+  .tx-list { display:flex;flex-direction:column;gap:9px; }
+  .tx { background:var(--card);border:1.5px solid var(--line);border-radius:15px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);animation:txIn .5s cubic-bezier(.2,.9,.3,1) both;transition:transform .25s cubic-bezier(.2,.9,.3,1),box-shadow .25s, background .5s, border-color .5s; }
+  .tx:hover { transform:translateX(3px);box-shadow:var(--shadow-lg); }
+  @keyframes txIn{from{opacity:0;transform:translateY(-10px) scale(.97);}}
+  .tx-ico { width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:17px;font-weight:700;flex-shrink:0;transition:transform .3s cubic-bezier(.2,1.4,.5,1); }
+  .tx:hover .tx-ico { transform:scale(1.1) rotate(-8deg); }
+  .tx-in .tx-ico { background:var(--acc-light);color:var(--acc); }
+  .tx-out .tx-ico { background:var(--red-light);color:var(--red); }
+  .tx-info { flex:1;min-width:0; }
+  .tx-title { font-size:13.5px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .tx-date { font-size:11px;color:var(--muted); }
+  .tx-amt { font-size:13.5px;font-weight:700;white-space:nowrap;text-align:right; }
+  .tx-fee { font-size:10px;color:var(--muted);font-weight:500;margin-top:2px; }
+  .tx-in .tx-amt { color:var(--acc); } .tx-out .tx-amt { color:var(--red); }
+  .empty { text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;background:var(--card);border:1.5px dashed var(--line2);border-radius:16px;line-height:1.6;animation:slideUp .5s .25s cubic-bezier(.2,.9,.3,1) both; }
+
+  .overlay { position:fixed;inset:0;background:transparent;backdrop-filter:blur(0);display:flex;align-items:flex-end;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .35s,backdrop-filter .35s,background .35s; }
+  .overlay.show { opacity:1;pointer-events:auto;background:var(--overlay-bg);backdrop-filter:blur(4px); }
+  .sheet { background:var(--card);border-radius:26px 26px 0 0;width:100%;max-width:440px;padding:22px 22px 34px;transform:translateY(100%);transition:transform .45s cubic-bezier(.2,1.1,.3,1), background .5s;border-top:1.5px solid var(--line);max-height:92vh;overflow-y:auto;box-shadow:0 -12px 40px rgba(13,18,32,.15); }
+  body.dark .sheet { box-shadow: 0 -12px 40px rgba(0,0,0,.5); }
+  .overlay.show .sheet { transform:translateY(0); }
+  .sheet-handle { width:40px;height:4px;background:var(--line2);border-radius:4px;margin:0 auto 18px; }
+  .sheet h3 { font-size:18px;margin-bottom:4px;letter-spacing:-.3px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+  .sheet .sub { font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5; }
+  .nom-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:16px; }
+  .nom { background:var(--card2);border:1.5px solid var(--line);border-radius:12px;padding:14px 6px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;transition:all .25s cubic-bezier(.2,.9,.3,1);color:var(--text); }
+  .nom:hover { transform:translateY(-2px);border-color:var(--acc); }
+  .nom:active,.nom.sel { border-color:var(--acc);background:var(--acc-light);color:var(--acc);transform:scale(.96); }
+  .nom.sel { animation:nomPop .4s cubic-bezier(.2,1.4,.5,1); }
+  @keyframes nomPop{0%{transform:scale(.96);}50%{transform:scale(1.04);}100%{transform:scale(1);}}
+  .amt-input { display:flex;align-items:center;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:0 16px;margin-bottom:16px;transition:all .25s cubic-bezier(.2,.9,.3,1);box-shadow:var(--shadow); }
+  .amt-input:focus-within { border-color:var(--acc);box-shadow:0 0 0 4px rgba(14,164,114,.12),0 4px 14px rgba(14,164,114,.1);transform:translateY(-1px); }
+  .amt-input span { font-size:16px;font-weight:700;color:var(--muted);margin-right:8px; }
+  .amt-input input { flex:1;background:none;border:none;outline:none;color:var(--text);font-size:20px;font-weight:700;padding:15px 0;font-family:inherit;width:100%; }
+  .amt-input input::placeholder { color:var(--muted);opacity:.5;font-weight:500; }
+  .fee-box { background:var(--card2);border-radius:14px;padding:14px 16px;margin-bottom:18px;font-size:13px;animation:slideDown .3s cubic-bezier(.2,.9,.3,1);overflow:hidden; }
+  @keyframes slideDown{from{opacity:0;transform:translateY(-8px);max-height:0;padding-top:0;padding-bottom:0;}to{opacity:1;transform:translateY(0);max-height:200px;}}
+  .fee-row { display:flex;justify-content:space-between;padding:5px 0;color:var(--muted);font-weight:500; }
+  .fee-row.total { border-top:1.5px dashed var(--line2);margin-top:6px;padding-top:10px;color:var(--text);font-weight:700;font-size:14px; }
+  .fee-row.total span:last-child { color:var(--acc); }
+  .fee-row .fee-amt { color:var(--orange);font-weight:700; }
+
+  .toast { position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-120px) scale(.9);background:linear-gradient(135deg,#0ea472,#2563eb);color:#fff;padding:13px 20px;border-radius:13px;font-weight:700;font-size:13.5px;z-index:500;transition:transform .45s cubic-bezier(.2,1.3,.3,1),opacity .3s;box-shadow:0 14px 32px rgba(14,164,114,.4);display:flex;align-items:center;gap:8px;max-width:90%;opacity:0; }
+  .toast.show { transform:translateX(-50%) translateY(0) scale(1);opacity:1; }
+  .toast.error { background:linear-gradient(135deg,#e5484d,#f97316);box-shadow:0 14px 32px rgba(229,72,77,.4); }
+  .toast .ticon { display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.25);font-size:12px;animation:pop .4s cubic-bezier(.2,1.4,.5,1); }
+  .hidden { display:none !important; }
+
+  .check-anim { width:72px;height:72px;border-radius:50%;background:var(--acc-light);display:grid;place-items:center;margin:0 auto 16px;position:relative;animation:pop .5s cubic-bezier(.2,1.4,.5,1); }
+  @keyframes pop{0%{transform:scale(0);}60%{transform:scale(1.15);}100%{transform:scale(1);}}
+  .check-anim::before { content:'';position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--acc);opacity:0;animation:ripple 1.4s ease-out infinite; }
+  @keyframes ripple{0%{transform:scale(.8);opacity:.6;}100%{transform:scale(1.4);opacity:0;}}
+  .check-anim svg { width:34px;height:34px;stroke:var(--acc);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;fill:none; }
+  .check-anim svg path { stroke-dasharray:40;stroke-dashoffset:40;animation:draw .5s .2s cubic-bezier(.2,.9,.3,1) forwards; }
+  @keyframes draw{to{stroke-dashoffset:0;}}
+
+  .badge { display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.3px;text-transform:uppercase;animation:pop .4s cubic-bezier(.2,1.4,.5,1); }
+  .badge-free { background:var(--acc-light);color:var(--acc); }
+  .badge-paid { background:var(--orange-light);color:var(--orange); }
+
+  .spinner { display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.35);border-radius:50%;border-top-color:#fff;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle; }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .btn.loading { pointer-events:none;opacity:.85; }
+
+  .confetti { position:fixed;width:8px;height:14px;top:-20px;pointer-events:none;z-index:400;opacity:0; }
+  @keyframes confettiFall{0%{transform:translateY(0) rotate(0);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+
+  /* AI */
+  .ai-fab { position:fixed;bottom:22px;right:22px;width:60px;height:60px;border-radius:20px;background:linear-gradient(135deg,#0ea472,#2563eb);background-size:200% 200%;display:grid;place-items:center;cursor:pointer;z-index:90;box-shadow:0 12px 28px rgba(14,164,114,.4);animation:gradientShift 5s ease infinite;transition:transform .3s cubic-bezier(.2,1.3,.5,1); }
+  .ai-fab:hover { transform:scale(1.08) translateY(-3px); }
+  .ai-fab:active { transform:scale(.94); }
+  .ai-fab svg { width:28px;height:28px; }
+  .ai-fab::before { content:'';position:absolute;inset:-6px;border-radius:24px;border:2px solid rgba(14,164,114,.4);animation:fabRipple 2.5s ease-out infinite; }
+  @keyframes fabRipple{0%{transform:scale(.85);opacity:.7;}100%{transform:scale(1.4);opacity:0;}}
+  .ai-fab .ai-dot { position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:var(--red);border:2px solid var(--card);animation:dotPulse 1.5s ease-in-out infinite; }
+  @keyframes dotPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.2);}}
+
+  .ai-panel { position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:440px;height:82vh;max-height:700px;background:var(--card);border-radius:26px 26px 0 0;z-index:95;display:flex;flex-direction:column;box-shadow:0 -20px 50px rgba(13,18,32,.2);transition:transform .5s cubic-bezier(.2,1.1,.3,1), background .5s;border-top:1.5px solid var(--line);overflow:hidden; }
+  body.dark .ai-panel { box-shadow: 0 -20px 50px rgba(0,0,0,.5); }
+  .ai-panel.show { transform:translateX(-50%) translateY(0); }
+  .ai-header { padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1.5px solid var(--line);background:var(--ai-header-bg);flex-shrink:0;transition: background .5s; }
+  .ai-avatar { width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#0ea472,#2563eb);display:grid;place-items:center;color:#fff;font-size:18px;font-weight:800;flex-shrink:0;position:relative;overflow:hidden; }
+  .ai-avatar::after { content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.3),transparent);animation:shine 4s infinite; }
+  .ai-name { font-size:15px;font-weight:700;letter-spacing:-.2px;display:flex;align-items:center;gap:6px; }
+  .ai-online { display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--acc);font-weight:600;background:var(--acc-light);padding:2px 7px;border-radius:5px; }
+  .ai-online::before { content:'';width:5px;height:5px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite; }
+  .ai-sub { font-size:11px;color:var(--muted);margin-top:2px; }
+  .ai-close { margin-left:auto;width:36px;height:36px;border-radius:12px;background:var(--card2);border:1.5px solid var(--line);display:grid;place-items:center;cursor:pointer;color:var(--muted);font-size:16px;transition:all .2s; }
+  .ai-close:hover { background:var(--red-light);color:var(--red);border-color:var(--red-light);transform:rotate(90deg); }
+  .ai-body { flex:1;overflow-y:auto;padding:16px 16px 8px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth; }
+  .ai-body::-webkit-scrollbar { width:4px; }
+  .ai-body::-webkit-scrollbar-thumb { background:var(--line2);border-radius:4px; }
+  .msg { max-width:82%;padding:11px 14px;border-radius:16px;font-size:13.5px;line-height:1.55;animation:msgIn .4s cubic-bezier(.2,.9,.3,1) both;word-wrap:break-word;transition: background .5s, color .5s; }
+  @keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(.96);}}
+  .msg-ai { background:var(--card2);color:var(--text);border-bottom-left-radius:6px;align-self:flex-start; }
+  .msg-user { background:linear-gradient(135deg,#0ea472,#2563eb);color:#fff;border-bottom-right-radius:6px;align-self:flex-end;box-shadow:0 4px 12px rgba(14,164,114,.25); }
+  .msg-ai b { color:var(--acc);font-weight:700; }
+  .msg-ai .hint { display:block;margin-top:6px;padding:8px 10px;background:var(--hint-bg);border-radius:10px;font-size:12px;color:var(--text);border-left:3px solid var(--acc); }
+  .typing { display:flex;gap:4px;align-items:center;padding:14px 16px;background:var(--card2);border-radius:16px;border-bottom-left-radius:6px;align-self:flex-start;width:fit-content; }
+  .typing span { width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:.4;animation:typingDot 1.2s infinite; }
+  .typing span:nth-child(2){animation-delay:.15s;} .typing span:nth-child(3){animation-delay:.3s;}
+  @keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
+  .quick-replies { display:flex;gap:8px;padding:4px 16px 12px;overflow-x:auto;flex-shrink:0;scrollbar-width:none; }
+  .quick-replies::-webkit-scrollbar { display:none; }
+  .qr { padding:8px 14px;background:var(--card);border:1.5px solid var(--line);border-radius:20px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;white-space:nowrap;transition:all .2s cubic-bezier(.2,.9,.3,1); }
+  .qr:hover { border-color:var(--acc);background:var(--acc-light);color:var(--acc);transform:translateY(-2px); }
+  .qr:active { transform:scale(.95); }
+  .ai-input-wrap { padding:10px 14px 14px;border-top:1.5px solid var(--line);background:var(--card);display:flex;gap:8px;align-items:center;flex-shrink:0;transition: background .5s; }
+  .ai-input-wrap input { flex:1;padding:13px 16px;background:var(--card2);border:1.5px solid transparent;border-radius:14px;font-size:14px;font-family:inherit;outline:none;color:var(--text);transition:all .2s; }
+  .ai-input-wrap input:focus { border-color:var(--acc);background:var(--card);box-shadow:0 0 0 4px rgba(14,164,114,.1); }
+  .ai-input-wrap input::placeholder { color: var(--muted); opacity:.7; }
+  .ai-send { width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0ea472,#2563eb);border:none;cursor:pointer;display:grid;place-items:center;color:#fff;transition:transform .2s;box-shadow:0 6px 16px rgba(14,164,114,.3);flex-shrink:0; }
+  .ai-send:active { transform:scale(.9); }
+  .ai-send svg { width:20px;height:20px; }
+  .ai-backdrop { position:fixed;inset:0;background:transparent;z-index:94;pointer-events:none;opacity:0;transition:opacity .35s,background .35s;backdrop-filter:blur(0); }
+  .ai-backdrop.show { background:var(--overlay-bg);opacity:1;pointer-events:auto;backdrop-filter:blur(3px); }
+  .insight-card { background:var(--insight-bg);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:8px;font-size:12.5px;transition: background .5s, border-color .5s; }
+  .insight-card .row { display:flex;justify-content:space-between;padding:4px 0;color:var(--muted); }
+  .insight-card .row b { color:var(--text); }
+  .insight-card .row.highlight b { color:var(--acc); }
+  .bar-wrap { height:6px;background:var(--card2);border-radius:4px;overflow:hidden;margin-top:6px; }
+  .bar-fill { height:100%;border-radius:4px;background:linear-gradient(90deg,#0ea472,#2563eb);width:0;transition:width .8s cubic-bezier(.2,.9,.3,1); }
+</style>
+</head>
+<body>
+
+<div class="ambient">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+</div>
+
+<!-- THEME TOGGLE -->
+<div class="theme-toggle" onclick="toggleTheme()" title="Ganti tema">
+  <div class="icon-wrap">
+    <div class="icon sun">☀️</div>
+    <div class="icon moon">🌙</div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="logo">
+    <div class="logo-mark">=</div>
+    <div class="logo-text">Aal<span>Pay</span></div>
+  </div>
+  <div class="login-box">
+    <h2>Selamat datang</h2>
+    <p>Masuk untuk mulai mengelola saldo kamu</p>
+    <div class="field"><label>NAMA LENGKAP</label>
+      <input type="text" id="inName" placeholder="cth. Budi Santoso" autocomplete="off">
+    </div>
+    <div class="field"><label>NOMOR HP</label>
+      <input type="tel" id="inPhone" placeholder="08xxxxxxxxxx" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">Masuk Sekarang</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="app hidden" id="mainApp">
+  <div class="header">
+    <div class="greet-wrap">
+      <div class="avatar" id="avatar">?</div>
+      <div>
+        <div class="greet-small">Selamat datang,</div>
+        <div class="greet-name" id="userName">—</div>
+      </div>
+    </div>
+    <div class="logout-btn" onclick="doLogout()">⏻</div>
+  </div>
+
+  <div class="balance-card">
+    <div class="bal-label"><span class="dot"></span> Saldo Aktif</div>
+    <div class="bal-amount" id="balWrap"><span class="cur">Rp</span><span id="balance">0</span></div>
+    <div class="bal-id" id="userId">•••• •••• ••••</div>
+  </div>
+
+  <div class="actions">
+    <div class="action" onclick="openTopup()"><div class="ico">＋</div>Top Up</div>
+    <div class="action" onclick="openTransfer()"><div class="ico">↗</div>Transfer</div>
+    <div class="action" onclick="openPay()"><div class="ico">▤</div>Bayar</div>
+    <div class="action" onclick="openWithdraw()"><div class="ico">↓</div>Tarik</div>
+  </div>
+
+  <div class="info-strip">
+    <div class="ico">💡</div>
+    <div><b>Transfer</b> Rp 2.500 · <b>Tarik</b> Rp 5.000 · <b>Top up</b> gratis · Tanya <b>NexAI</b> untuk saran keuangan 👉</div>
+  </div>
+
+  <div class="sec-title"><h3>Riwayat Transaksi</h3><span id="txCount">0 transaksi</span></div>
+  <div class="tx-list" id="txList"></div>
+</div>
+
+<!-- AI FAB -->
+<div class="ai-fab" id="aiFab" onclick="toggleAI()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0-3 3v1a3 3 0 1 0 0 6v1a3 3 0 0 0 3 3v1a3 3 0 1 0 6 0v-1a3 3 0 0 0 3-3v-1a3 3 0 1 0 0-6V9a3 3 0 0 0-3-3V5a3 3 0 0 0-3-3z"/>
+    <circle cx="9" cy="11" r="1" fill="#fff"/><circle cx="15" cy="11" r="1" fill="#fff"/>
+  </svg>
+  <div class="ai-dot"></div>
+</div>
+
+<!-- AI PANEL -->
+<div class="ai-backdrop" id="aiBackdrop" onclick="toggleAI()"></div>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-header">
+    <div class="ai-avatar">AI</div>
+    <div>
+      <div class="ai-name">AalAI <span class="ai-online">Online</span></div>
+      <div class="ai-sub">Asisten keuangan pribadi kamu</div>
+    </div>
+    <div class="ai-close" onclick="toggleAI()">✕</div>
+  </div>
+  <div class="ai-body" id="aiBody"></div>
+  <div class="quick-replies" id="quickReplies"></div>
+  <div class="ai-input-wrap">
+    <input type="text" id="aiInput" placeholder="Tanya apa saja soal keuangan..."
+           onkeydown="if(event.key==='Enter') sendAI()">
+    <button class="ai-send" onclick="sendAI()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- SHEETS -->
+<div class="overlay" id="topupOverlay"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <h3>Top Up Saldo <span class="badge badge-free">Gratis</span></h3>
+  <p class="sub">Pilih nominal atau masukkan jumlah lain</p>
+  <div class="nom-grid" id="nomGrid">
+    <div class="nom" data-v="20000">20.000</div><div class="nom" data-v="50000">50.000</div>
+    <div class="nom" data-v="100000">100.000</div><div class="nom" data-v="200000">200.000</div>
+    <div class="nom" data-v="500000">500.000</div><div class="nom" data-v="1000000">1.000.000</div>
+  </div>
+  <div class="amt-input"><span>Rp</span><input type="text" id="topupAmount" placeholder="0" inputmode="numeric"></div>
+  <div class="fee-box" id="topupFeeBox" style="display:none">
+    <div class="fee-row"><span>Nominal top up</span><span id="tpNominal">Rp 0</span></div>
+    <div class="fee-row"><span>Biaya admin</span><span class="fee-amt" style="color:var(--acc)">Gratis</span></div>
+    <div class="fee-row total"><span>Saldo diterima</span><span id="tpTotal">Rp 0</span></div>
+  </div>
+  <button class="btn btn-primary" id="topupBtn" onclick="confirmTopup()">Konfirmasi Top Up</button>
+</div></div>
+
+<div class="overlay" id="transferOverlay"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <h3>Transfer Saldo <span class="badge badge-paid">+Fee Rp 2.500</span></h3>
+  <p class="sub">Kirim saldo ke nomor lain · biaya admin otomatis dipotong</p>
+  <div class="field"><label>NOMOR TUJUAN</label><input type="tel" id="trTarget" placeholder="08xxxxxxxxxx"></div>
+  <div class="amt-input" style="margin-top:4px"><span>Rp</span><input type="text" id="trAmount" placeholder="0" inputmode="numeric"></div>
+  <div class="fee-box" id="trFeeBox" style="display:none">
+    <div class="fee-row"><span>Jumlah transfer</span><span id="trNominal">Rp 0</span></div>
+    <div class="fee-row"><span>Biaya admin</span><span class="fee-amt" id="trFee">Rp 2.500</span></div>
+    <div class="fee-row total"><span>Total dipotong</span><span id="trTotal">Rp 0</span></div>
+  </div>
+  <button class="btn btn-primary" id="transferBtn" onclick="confirmTransfer()">Kirim Saldo</button>
+</div></div>
+
+<div class="overlay" id="payOverlay"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <h3>Bayar Tagihan <span class="badge badge-paid">+Fee Rp 1.500</span></h3>
+  <p class="sub">Bayar tagihan listrik, air, internet, dll</p>
+  <div class="field"><label>JENIS LAYANAN</label><input type="text" id="payService" placeholder="cth. Listrik PLN" value="Listrik PLN"></div>
+  <div class="field"><label>NOMOR PELANGGAN</label><input type="text" id="payCust" placeholder="cth. 1234567890"></div>
+  <div class="amt-input" style="margin-top:4px"><span>Rp</span><input type="text" id="payAmount" placeholder="0" inputmode="numeric"></div>
+  <div class="fee-box" id="payFeeBox" style="display:none">
+    <div class="fee-row"><span>Nominal tagihan</span><span id="pyNominal">Rp 0</span></div>
+    <div class="fee-row"><span>Biaya admin</span><span class="fee-amt">Rp 1.500</span></div>
+    <div class="fee-row total"><span>Total dipotong</span><span id="pyTotal">Rp 0</span></div>
+  </div>
+  <button class="btn btn-primary" id="payBtn" onclick="confirmPay()">Bayar Sekarang</button>
+</div></div>
+
+<div class="overlay" id="withdrawOverlay"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <h3>Tarik Saldo <span class="badge badge-paid">+Fee Rp 5.000</span></h3>
+  <p class="sub">Tarik saldo ke rekening bank kamu</p>
+  <div class="field"><label>BANK TUJUAN</label><input type="text" id="wdBank" placeholder="cth. BCA" value="BCA"></div>
+  <div class="field"><label>NOMOR REKENING</label><input type="tel" id="wdAccount" placeholder="1234567890"></div>
+  <div class="amt-input" style="margin-top:4px"><span>Rp</span><input type="text" id="wdAmount" placeholder="0" inputmode="numeric"></div>
+  <div class="fee-box" id="wdFeeBox" style="display:none">
+    <div class="fee-row"><span>Jumlah penarikan</span><span id="wdNominal">Rp 0</span></div>
+    <div class="fee-row"><span>Biaya admin</span><span class="fee-amt">Rp 5.000</span></div>
+    <div class="fee-row total"><span>Total dipotong</span><span id="wdTotal">Rp 0</span></div>
+  </div>
+  <button class="btn btn-primary" id="wdBtn" onclick="confirmWithdraw()">Tarik Saldo</button>
+</div></div>
+
+<div class="overlay" id="successOverlay"><div class="sheet" style="text-align:center">
+  <div class="sheet-handle"></div>
+  <div class="check-anim"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"></path></svg></div>
+  <h3 id="sucTitle" style="justify-content:center">Berhasil!</h3>
+  <p class="sub" id="sucMsg" style="margin-bottom:24px">Transaksi kamu sudah diproses</p>
+  <button class="btn btn-primary" onclick="closeAll()">Selesai</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   ============ THEME TOGGLE (LIGHT / DARK) ==================
+   ============================================================ */
+const THEME_KEY = 'nexpay_theme';
+
+function applyTheme(theme){
+  if(theme === 'dark') document.body.classList.add('dark');
+  else document.body.classList.remove('dark');
+}
+
+function toggleTheme(){
+  const isDark = document.body.classList.contains('dark');
+  const next = isDark ? 'light' : 'dark';
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch(e){}
+  showThemeToast(next);
+}
+
+function showThemeToast(theme){
+  const t = document.getElementById('toast');
+  t.innerHTML = `<span class="ticon">${theme==='dark'?'🌙':'☀️'}</span><span>Mode ${theme==='dark'?'gelap':'terang'} aktif</span>`;
+  t.className = 'toast show';
+  clearTimeout(t._t);
+  t._t = setTimeout(()=> t.classList.remove('show'), 1800);
+}
+
+/* Auto-detect sistem saat pertama kali */
+(function initTheme(){
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if(saved){
+      applyTheme(saved);
+    } else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
+      applyTheme('dark');
+    }
+  } catch(e){}
+})();
+
+/* ============ CONSTANTS & STATE ============ */
+const FEES = { transfer: 2500, pay: 1500, withdraw: 5000 };
+const KEY = 'nexpay_v5';
+let state = { user: null, balance: 0, tx: [] };
+
+function save(){ try{localStorage.setItem(KEY, JSON.stringify(state));}catch(e){} }
+function load(){ try{const raw=localStorage.getItem(KEY); if(raw) state=Object.assign(state, JSON.parse(raw));}catch(e){} }
+
+/* ============ HELPERS ============ */
+function rupiah(n){ return new Intl.NumberFormat('id-ID').format(n); }
+function parseNum(s){ return parseInt(String(s).replace(/\D/g,'')) || 0; }
+function fmtDate(ts){ return new Date(ts).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function genId(phone){ let h=0; for(let i=0;i<phone.length;i++) h=(h*31+phone.charCodeAt(i))>>>0; const s=String(h).padStart(10,'0'); return s.replace(/(\d{4})(\d{4})(\d{0,4})/,(m,a,b,c)=>`${a} ${b} ${c||'0000'}`.trim()); }
+function initials(name){ return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.innerHTML=`<span class="ticon">${type==='error'?'!':'✓'}</span><span>${msg}</span>`;
+  t.className='toast show'+(type==='error'?' error':'');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function animateNumber(el,from,to,duration=800){
+  const start=performance.now(); const diff=to-from;
+  function tick(now){
+    const p=Math.min((now-start)/duration,1);
+    const eased=1-Math.pow(1-p,3);
+    el.textContent=rupiah(Math.round(from+diff*eased));
+    if(p<1) requestAnimationFrame(tick); else el.textContent=rupiah(to);
+  }
+  requestAnimationFrame(tick);
+}
+function confetti(){
+  const colors=['#0ea472','#2563eb','#f59e0b','#e5484d','#9333ea','#06b6d4'];
+  for(let i=0;i<30;i++){
+    const c=document.createElement('div');
+    c.className='confetti';
+    c.style.left=Math.random()*100+'vw';
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.borderRadius=Math.random()>.5?'50%':'2px';
+    c.style.animation=`confettiFall ${1.5+Math.random()}s ease-out forwards`;
+    c.style.animationDelay=Math.random()*.3+'s';
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(),2800);
+  }
+}
+function btnLoading(btn,text='Memproses'){
+  const o=btn.innerHTML; btn.dataset.original=o;
+  btn.classList.add('loading');
+  btn.innerHTML=`<span class="spinner"></span>${text}...`;
+  return ()=>{ btn.classList.remove('loading'); btn.innerHTML=btn.dataset.original; };
+}
+
+/* ============ RENDER ============ */
+let lastBalance=0;
+function render(skipBalanceAnim=false){
+  if(state.user){
+    document.getElementById('userName').textContent=state.user.name;
+    document.getElementById('avatar').textContent=initials(state.user.name);
+    document.getElementById('userId').textContent=genId(state.user.phone);
+  }
+  const balEl=document.getElementById('balance');
+  if(!skipBalanceAnim && lastBalance!==state.balance){
+    animateNumber(balEl,lastBalance,state.balance);
+    lastBalance=state.balance;
+    const wrap=document.getElementById('balWrap');
+    wrap.classList.remove('bump'); void wrap.offsetWidth; wrap.classList.add('bump');
+  } else { balEl.textContent=rupiah(state.balance); lastBalance=state.balance; }
+
+  const list=document.getElementById('txList');
+  const cnt=document.getElementById('txCount');
+  if(!state.tx.length){
+    list.innerHTML='<div class="empty">Belum ada transaksi.<br>Yuk mulai top up saldo kamu 👆</div>';
+    cnt.textContent='0 transaksi';
+  } else {
+    list.innerHTML=state.tx.map((t,i)=>`
+      <div class="tx tx-${t.type}" style="animation-delay:${Math.min(i*0.04,0.4)}s">
+        <div class="tx-ico">${t.type==='in'?'↓':'↑'}</div>
+        <div class="tx-info">
+          <div class="tx-title">${t.title}</div>
+          <div class="tx-date">${fmtDate(t.date)}</div>
+          ${t.fee?`<div class="tx-fee">+ biaya admin Rp ${rupiah(t.fee)}</div>`:''}
+        </div>
+        <div><div class="tx-amt">${t.type==='in'?'+':'-'} Rp ${rupiah(t.amount)}</div></div>
+      </div>
+    `).join('');
+    cnt.textContent=state.tx.length+' transaksi';
+  }
+}
+
+/* ============ AUTH ============ */
+function doLogin(){
+  const btn=document.getElementById('loginBtn');
+  const name=document.getElementById('inName').value.trim();
+  const phone=document.getElementById('inPhone').value.trim();
+  if(name.length<2) return toast('Nama minimal 2 karakter','error');
+  if(!/^0?8\d{8,12}$/.test(phone)) return toast('Nomor HP tidak valid','error');
+  const done=btnLoading(btn,'Masuk');
+  setTimeout(()=>{
+    done();
+    state.user={name,phone}; save(); enterApp(); confetti();
+    toast('Berhasil masuk, '+name.split(' ')[0]);
+  },700);
+}
+function enterApp(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  render(true);
+}
+function doLogout(){
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('inName').value=state.user?state.user.name:'';
+  document.getElementById('inPhone').value=state.user?state.user.phone:'';
+  const ls=document.getElementById('loginScreen');
+  ls.querySelectorAll('.field, .btn-primary, .login-box h2, .login-box p, .logo').forEach(el=>{
+    el.style.animation='none'; void el.offsetWidth; el.style.animation='';
+  });
+  aiInitialized=false; document.getElementById('aiBody').innerHTML='';
+  ctx.lastIntent=null; ctx.lastNum=null; ctx.pendingIntent=null;
+  toggleAI(true); toast('Kamu sudah keluar');
+}
+
+/* ============ SHEETS ============ */
+function openTopup(){
+  document.getElementById('topupAmount').value='';
+  document.getElementById('topupFeeBox').style.display='none';
+  document.querySelectorAll('#nomGrid .nom').forEach(n=>n.classList.remove('sel'));
+  document.getElementById('topupOverlay').classList.add('show');
+}
+function openTransfer(){
+  document.getElementById('trTarget').value='';
+  document.getElementById('trAmount').value='';
+  document.getElementById('trFeeBox').style.display='none';
+  document.getElementById('transferOverlay').classList.add('show');
+}
+function openPay(){
+  document.getElementById('payCust').value='';
+  document.getElementById('payAmount').value='';
+  document.getElementById('payFeeBox').style.display='none';
+  document.getElementById('payOverlay').classList.add('show');
+}
+function openWithdraw(){
+  document.getElementById('wdAccount').value='';
+  document.getElementById('wdAmount').value='';
+  document.getElementById('wdFeeBox').style.display='none';
+  document.getElementById('withdrawOverlay').classList.add('show');
+}
+function closeAll(){ document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show')); }
+document.querySelectorAll('.overlay').forEach(o=>{
+  o.addEventListener('click',e=>{ if(e.target===o) closeAll(); });
+});
+
+/* ============ TOPUP ============ */
+document.getElementById('nomGrid').addEventListener('click',e=>{
+  const el=e.target.closest('.nom'); if(!el) return;
+  document.querySelectorAll('#nomGrid .nom').forEach(n=>n.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('topupAmount').value=rupiah(el.dataset.v);
+  updateTopupFee();
+});
+document.getElementById('topupAmount').addEventListener('input',e=>{
+  const v=parseNum(e.target.value);
+  e.target.value=v?rupiah(v):'';
+  document.querySelectorAll('#nomGrid .nom').forEach(n=>{
+    n.classList.toggle('sel',parseNum(n.dataset.v)===v);
+  });
+  updateTopupFee();
+});
+function updateTopupFee(){
+  const v=parseNum(document.getElementById('topupAmount').value);
+  const box=document.getElementById('topupFeeBox');
+  if(v>0){
+    box.style.display='block';
+    box.style.animation='none'; void box.offsetWidth;
+    box.style.animation='slideDown .3s cubic-bezier(.2,.9,.3,1)';
+    document.getElementById('tpNominal').textContent='Rp '+rupiah(v);
+    document.getElementById('tpTotal').textContent='Rp '+rupiah(v);
+  } else box.style.display='none';
+}
+function confirmTopup(){
+  const btn=document.getElementById('topupBtn');
+  const amount=parseNum(document.getElementById('topupAmount').value);
+  if(amount<10000) return toast('Minimal top up Rp 10.000','error');
+  if(amount>20000000) return toast('Maksimal top up Rp 20.000.000','error');
+  const done=btnLoading(btn,'Memproses');
+  setTimeout(()=>{
+    done();
+    state.balance+=amount;
+    state.tx.unshift({type:'in',title:'Top Up Saldo',amount,fee:0,date:Date.now()});
+    save(); render(); closeAll();
+    document.getElementById('sucTitle').textContent='Top Up Berhasil!';
+    document.getElementById('sucMsg').innerHTML='Saldo Rp '+rupiah(amount)+' sudah ditambahkan<br><span style="font-size:11px;color:var(--muted)">Gratis biaya admin</span>';
+    setTimeout(()=>{ document.getElementById('successOverlay').classList.add('show'); confetti(); },150);
+  },650);
+}
+
+/* ============ TRANSFER ============ */
+document.getElementById('trAmount').addEventListener('input',e=>{
+  const v=parseNum(e.target.value);
+  e.target.value=v?rupiah(v):'';
+  updateTransferFee();
+});
+function updateTransferFee(){
+  const v=parseNum(document.getElementById('trAmount').value);
+  const box=document.getElementById('trFeeBox');
+  if(v>0){
+    box.style.display='block';
+    box.style.animation='none'; void box.offsetWidth;
+    box.style.animation='slideDown .3s cubic-bezier(.2,.9,.3,1)';
+    document.getElementById('trNominal').textContent='Rp '+rupiah(v);
+    document.getElementById('trTotal').textContent='Rp '+rupiah(v+FEES.transfer);
+  } else box.style.display='none';
+}
+function confirmTransfer(){
+  const btn=document.getElementById('transferBtn');
+  const target=document.getElementById('trTarget').value.trim();
+  const amount=parseNum(document.getElementById('trAmount').value);
+  const fee=FEES.transfer; const total=amount+fee;
+  if(!/^0?8\d{8,12}$/.test(target)) return toast('Nomor tujuan tidak valid','error');
+  if(target===state.user.phone) return toast('Tidak bisa transfer ke diri sendiri','error');
+  if(amount<10000) return toast('Minimal transfer Rp 10.000','error');
+  if(total>state.balance) return toast('Saldo tidak cukup (butuh Rp '+rupiah(total)+')','error');
+  const done=btnLoading(btn,'Mengirim');
+  setTimeout(()=>{
+    done();
+    state.balance-=total;
+    state.tx.unshift({type:'out',title:'Transfer ke '+target,amount,fee,date:Date.now()});
+    save(); render(); closeAll();
+    document.getElementById('sucTitle').textContent='Transfer Berhasil!';
+    document.getElementById('sucMsg').innerHTML='Rp '+rupiah(amount)+' terkirim ke '+target+'<br><span style="font-size:11px;color:var(--muted)">Biaya admin Rp '+rupiah(fee)+' dipotong</span>';
+    setTimeout(()=>{ document.getElementById('successOverlay').classList.add('show'); confetti(); },150);
+  },650);
+}
+
+/* ============ PAY ============ */
+document.getElementById('payAmount').addEventListener('input',e=>{
+  const v=parseNum(e.target.value);
+  e.target.value=v?rupiah(v):'';
+  updatePayFee();
+});
+function updatePayFee(){
+  const v=parseNum(document.getElementById('payAmount').value);
+  const box=document.getElementById('payFeeBox');
+  if(v>0){
+    box.style.display='block';
+    box.style.animation='none'; void box.offsetWidth;
+    box.style.animation='slideDown .3s cubic-bezier(.2,.9,.3,1)';
+    document.getElementById('pyNominal').textContent='Rp '+rupiah(v);
+    document.getElementById('pyTotal').textContent='Rp '+rupiah(v+FEES.pay);
+  } else box.style.display='none';
+}
+function confirmPay(){
+  const btn=document.getElementById('payBtn');
+  const service=document.getElementById('payService').value.trim()||'Tagihan';
+  const cust=document.getElementById('payCust').value.trim();
+  const amount=parseNum(document.getElementById('payAmount').value);
+  const fee=FEES.pay; const total=amount+fee;
+  if(cust.length<4) return toast('Nomor pelanggan tidak valid','error');
+  if(amount<10000) return toast('Minimal pembayaran Rp 10.000','error');
+  if(total>state.balance) return toast('Saldo tidak cukup (butuh Rp '+rupiah(total)+')','error');
+  const done=btnLoading(btn,'Memproses');
+  setTimeout(()=>{
+    done();
+    state.balance-=total;
+    state.tx.unshift({type:'out',title:service+' · '+cust,amount,fee,date:Date.now()});
+    save(); render(); closeAll();
+    document.getElementById('sucTitle').textContent='Pembayaran Berhasil!';
+    document.getElementById('sucMsg').innerHTML=service+' Rp '+rupiah(amount)+' telah dibayar<br><span style="font-size:11px;color:var(--muted)">Biaya admin Rp '+rupiah(fee)+' dipotong</span>';
+    setTimeout(()=>{ document.getElementById('successOverlay').classList.add('show'); confetti(); },150);
+  },650);
+}
+
+/* ============ WITHDRAW ============ */
+document.getElementById('wdAmount').addEventListener('input',e=>{
+  const v=parseNum(e.target.value);
+  e.target.value=v?rupiah(v):'';
+  updateWdFee();
+});
+function updateWdFee(){
+  const v=parseNum(document.getElementById('wdAmount').value);
+  const box=document.getElementById('wdFeeBox');
+  if(v>0){
+    box.style.display='block';
+    box.style.animation='none'; void box.offsetWidth;
+    box.style.animation='slideDown .3s cubic-bezier(.2,.9,.3,1)';
+    document.getElementById('wdNominal').textContent='Rp '+rupiah(v);
+    document.getElementById('wdTotal').textContent='Rp '+rupiah(v+FEES.withdraw);
+  } else box.style.display='none';
+}
+function confirmWithdraw(){
+  const btn=document.getElementById('wdBtn');
+  const bank=document.getElementById('wdBank').value.trim()||'Bank';
+  const acc=document.getElementById('wdAccount').value.trim();
+  const amount=parseNum(document.getElementById('wdAmount').value);
+  const fee=FEES.withdraw; const total=amount+fee;
+  if(acc.length<6) return toast('Nomor rekening tidak valid','error');
+  if(amount<10000) return toast('Minimal penarikan Rp 10.000','error');
+  if(total>state.balance) return toast('Saldo tidak cukup (butuh Rp '+rupiah(total)+')','error');
+  const done=btnLoading(btn,'Memproses');
+  setTimeout(()=>{
+    done();
+    state.balance-=total;
+    state.tx.unshift({type:'out',title:'Tarik ke '+bank+' · '+acc.slice(-4),amount,fee,date:Date.now()});
+    save(); render(); closeAll();
+    document.getElementById('sucTitle').textContent='Penarikan Berhasil!';
+    document.getElementById('sucMsg').innerHTML='Rp '+rupiah(amount)+' diproses ke '+bank+'<br><span style="font-size:11px;color:var(--muted)">Biaya admin Rp '+rupiah(fee)+' dipotong</span>';
+    setTimeout(()=>{ document.getElementById('successOverlay').classList.add('show'); confetti(); },150);
+  },650);
+}
+
+/* ============================================================
+   ==================  NexAI (FULL ENGINE)  ==================
+   ============================================================ */
+
+let aiInitialized=false, aiOpen=false;
+const ctx = { lastIntent:null, lastNum:null, lastEntities:{}, history:[], pendingQuestion:null };
+
+function norm(s){
+  return s.toLowerCase().replace(/[^\w\s\/\-\.]/g,' ').replace(/\s+/g,' ').trim();
+}
+
+const NUM_WORDS = {
+  'nol':0,'satu':1,'dua':2,'tiga':3,'empat':4,'lima':5,'enam':6,'tujuh':7,'delapan':8,'sembilan':9,
+  'sepuluh':10,'sebelas':11,'dua belas':12,'seratus':100,'dua ratus':200,'tiga ratus':300,
+  'lima ratus':500,'seribu':1000,'seribu lima':1500,
+  'sepuluh ribu':10000,'dua puluh ribu':20000,'lima puluh ribu':50000,'seratus ribu':100000,
+  'dua ratus ribu':200000,'lima ratus ribu':500000,'satu juta':1000000,
+  'juta':1000000,'ribu':1000,'ratus':100,'miliar':1000000000
+};
+const NUM_SUFFIX = { 'k':1000, 'rb':1000, 'ribu':1000, 'jt':1000000, 'juta':1000000, 'm':1000000000, 'miliar':1000000000 };
+
+function extractNumber(text){
+  const t = norm(text);
+  let m;
+  m = t.match(/(\d+(?:[\.,]\d+)?)\s*(rb|ribu|k|jt|juta|m|miliar)\b/);
+  if(m){
+    let num = parseFloat(m[1].replace(',','.'));
+    return Math.round(num * (NUM_SUFFIX[m[2]] || 1000));
+  }
+  m = t.match(/(\d{1,3}(?:[\.\s]\d{3})+)/);
+  if(m) return parseInt(m[1].replace(/[\.\s]/g,'')) || 0;
+  for(const [word, val] of Object.entries(NUM_WORDS)){
+    if(t.includes(word)) return val;
+  }
+  m = t.match(/\b(\d{4,})\b/);
+  if(m) return parseInt(m[1]);
+  m = t.match(/\b(\d+)\b/);
+  if(m){
+    const n = parseInt(m[1]);
+    if(n <= 100 && (t.includes('persen') || t.includes('%') || t.includes('tahun') || t.includes('bulan') || t.includes('hari'))) return n;
+    return n;
+  }
+  return null;
+}
+
+const INTENTS = {
+  greeting:    { kw:['halo','hai','hi','hello','helo','pagi','siang','sore','malam','assalamualaikum','permisi','eh'], w:1.2 },
+  thanks:      { kw:['makasih','thanks','thx','terima kasih','sip','oke','ok','mantap','bagus'], w:1.5 },
+  saldo:       { kw:['saldo','balance','dompet','uang saya','punya saya','sisa'], w:1.8 },
+  analisis:    { kw:['analisis','analisa','review','evaluasi','laporan','ringkas','summary','kondisi','cek keuangan','bagaimana keuangan','gimana keuangan'], w:2.5 },
+  budget:      { kw:['budget','anggaran','alokasi','pembagian','bagi uang','atur uang','atur gaji','pengelolaan','kelola'], w:2.2 },
+  nabung:      { kw:['nabung','menabung','tabung','saving','investasi','dana darurat','emergency','simpan uang'], w:2.2 },
+  boros:       { kw:['boros','hemat','pemborosan','pelit','pengeluaran','keluar','spend','kebanyakan','pangkas'], w:2.2 },
+  transfer:    { kw:['transfer','kirim','fee transfer','biaya transfer'], w:2.0 },
+  tarik:       { kw:['tarik','withdraw','penarikan','cash','atm'], w:2.0 },
+  topup:       { kw:['top up','topup','isi saldo','isi ulang','tambah saldo'], w:2.0 },
+  bayar:       { kw:['bayar','tagihan','listrik','pln','air','internet','pdam','token'], w:2.0 },
+  tips:        { kw:['tips','saran','nasihat','kasih tau','ajarin','bantu','tolong','bimbing','rekomendasi','menurut kamu','kata kamu'], w:1.8 },
+  target:      { kw:['target','goal','mimpi','rencana','beli','cita','impian','pengin','pengen','mau beli'], w:2.2 },
+  kalkulasi:   { kw:['hitung','kalkulasi','simulasi','berapa lama','berapa bulan','berapa tahun'], w:2.0 },
+  banding:     { kw:['banding','vs','lebih baik','pilih mana','pilih yang','mending'], w:2.0 },
+  risiko:      { kw:['risiko','aman','bahaya','rugi','untung'], w:1.8 },
+  pajak:       { kw:['pajak','ppn','pph'], w:2.0 },
+  hutang:      { kw:['hutang','utang','pinjam','kredit','cicilan','paylater','kartu kredit'], w:2.2 },
+  freelance:   { kw:['freelance','sampingan','bisnis','usaha','jualan','omzet','penghasilan tambahan'], w:2.0 },
+  pemula:      { kw:['pemula','baru mulai','pertama kali','belajar','awam','gaptek'], w:2.0 },
+  bingung:     { kw:['bingung','tidak tahu','gak tau','ga tau','gamau','susah','sulit','berat'], w:2.0 },
+  penjelasan:  { kw:['apa itu','apa arti','jelaskan','maksudnya','kenapa','mengapa','kok'], w:1.8 },
+};
+
+function detectIntent(text){
+  const t = norm(text);
+  const scores = {};
+  for(const [intent, def] of Object.entries(INTENTS)){
+    let score = 0;
+    for(const kw of def.kw){ if(t.includes(kw)) score += def.w; }
+    if(score > 0) scores[intent] = score;
+  }
+  const arr = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  return arr.length ? arr.map(x=>x[0]) : ['unknown'];
+}
+
+function analyze(){
+  const income = state.tx.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
+  const expense = state.tx.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
+  const fees = state.tx.filter(t=>t.fee).reduce((s,t)=>s+t.fee,0);
+  const txCount = state.tx.length;
+  const inCount = state.tx.filter(t=>t.type==='in').length;
+  const outCount = state.tx.filter(t=>t.type==='out').length;
+  const bal = state.balance;
+  const savingRate = income > 0 ? Math.max(0, ((income - expense - fees) / income) * 100) : 0;
+  const burnRatio = income > 0 ? ((expense + fees) / income) : 0;
+  return { income, expense, fees, txCount, inCount, outCount, bal, savingRate, burnRatio };
+}
+
+const NAME = () => state.user ? state.user.name.split(' ')[0] : 'kamu';
+const TIME_GREET = () => {
+  const h = new Date().getHours();
+  return h < 11 ? 'pagi' : h < 15 ? 'siang' : h < 18 ? 'sore' : 'malam';
+};
+
+function resSaldo(){
+  const a = analyze(), n = NAME();
+  if(a.txCount === 0) return { html:`Saldo kamu masih <b>Rp 0</b> dan belum ada transaksi sama sekali, ${n}.<span class="hint">💡 Mulai dengan top up Rp 50.000–100.000 dulu, baru coba beberapa transaksi. Nanti tanya saya lagi — analisisnya bakal jauh lebih berguna.</span>` };
+  if(a.bal < 20000) return { html:`Saldo kamu <b>Rp ${rupiah(a.bal)}</b>, ${n}. Ini <b>cukup mepet</b> untuk transaksi apa-apa.<span class="hint">⚠️ Saran saya: top up minimal Rp 50.000 dulu supaya bisa bayar tagihan tanpa kena gagal.</span>` };
+  if(a.bal < 100000) return { html:`Saldo kamu sekarang <b>Rp ${rupiah(a.bal)}</b>. Masih aman, tapi belum ideal.<span class="hint">✅ Idealnya simpan minimal Rp 200.000 sebagai buffer — supaya kalau ada kebutuhan mendadak tidak panik.</span>` };
+  if(a.bal < 500000) return { html:`Saldo kamu <b>Rp ${rupiah(a.bal)}</b> — ini <b>sehat</b> 👍<span class="hint">💡 Saran: sisihkan 20% (Rp ${rupiah(Math.round(a.bal*0.2))}) ke pos tabungan sebelum kamu pakai belanja.</span>` };
+  return { html:`Wah, saldo kamu <b>Rp ${rupiah(a.bal)}</b> — <b>mantap!</b> 🎉<span class="hint">💰 Pertimbangkan pindah sebagian ke deposito atau reksadana — biar uangnya tidak "diam" saja kena inflasi.</span>` };
+}
+
+function resAnalisis(){
+  const a = analyze(), n = NAME();
+  if(a.txCount === 0) return { html:`Belum ada transaksi untuk saya analisis, ${n}.<span class="hint">📝 Coba top up dan lakukan 2-3 transaksi dulu. Setelah itu tanya "analisis keuangan saya" lagi — hasilnya bakal lengkap.</span>` };
+  const savingsBar = Math.min(100, Math.round(a.savingRate));
+  const burnBar = Math.min(100, Math.round(a.burnRatio * 100));
+  const verdict = a.burnRatio > 1 ? '🔴 Kamu belanja lebih banyak dari yang masuk — <b>bahaya</b>!'
+    : a.burnRatio > 0.8 ? '🟡 Kamu hampir habiskan semua pemasukan — kurang sehat.'
+    : a.burnRatio > 0.5 ? '🟢 Seimbang, tapi masih bisa lebih hemat.'
+    : '🟢 Sangat sehat — kamu disiplin!';
+  return { html:`
+      <b>📊 Analisis Keuangan ${n}</b>
+      <div class="insight-card">
+        <div class="row"><span>Total masuk</span><b style="color:var(--acc)">Rp ${rupiah(a.income)}</b></div>
+        <div class="row"><span>Total keluar</span><b style="color:var(--red)">Rp ${rupiah(a.expense)}</b></div>
+        <div class="row"><span>Biaya admin</span><b style="color:var(--orange)">Rp ${rupiah(a.fees)}</b></div>
+        <div class="row highlight"><span>Saldo aktif</span><b>Rp ${rupiah(a.bal)}</b></div>
+        <div style="margin-top:10px;font-size:11px;color:var(--muted);font-weight:600">Rasio belanja</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${burnBar}%"></div></div>
+        <div class="row" style="margin-top:4px"><span>${Math.round(a.burnRatio*100)}% dari pemasukan terpakai</span></div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted);font-weight:600">Tingkat menabung</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${savingsBar}%;background:linear-gradient(90deg,#0ea472,#22c55e)"></div></div>
+        <div class="row" style="margin-top:4px"><span>${Math.round(a.savingRate)}% tersisa</span></div>
+      </div>
+      <span class="hint">${verdict}<br>Total ${a.txCount} transaksi (${a.inCount} masuk, ${a.outCount} keluar).</span>
+  ` };
+}
+
+function resBudget(customAmount){
+  const a = analyze();
+  const basis = customAmount || (a.income > 0 ? a.income : (a.bal > 0 ? a.bal : 1000000));
+  const src = customAmount ? 'angka yang kamu sebutkan' : a.income > 0 ? 'pemasukan kamu' : a.bal > 0 ? 'saldo kamu saat ini' : 'contoh nominal';
+  const k50 = Math.round(basis*0.5), k30 = Math.round(basis*0.3), k20 = Math.round(basis*0.2);
+  return { html:`
+      <b>📊 Saran Budget 50/30/20</b><br>
+      Basis: ${src} → <b>Rp ${rupiah(basis)}</b>
+      <div class="insight-card">
+        <div class="row"><span>🏠 Kebutuhan pokok (50%)</span><b>Rp ${rupiah(k50)}</b></div>
+        <div class="row"><span>🎉 Keinginan/gaya hidup (30%)</span><b>Rp ${rupiah(k30)}</b></div>
+        <div class="row highlight"><span>💰 Tabungan & investasi (20%)</span><b>Rp ${rupiah(k20)}</b></div>
+      </div>
+      <span class="hint">💡 Disiplin menabung 20% = jalan tercepat punya dana darurat. Kalau mau saya hitung untuk nominal lain, tinggal bilang "kalau 3 juta?" — nanti saya sesuaikan.</span>
+  ` };
+}
+
+function resNabung(targetNum){
+  const a = analyze();
+  const target = targetNum || Math.max(100000, Math.round((a.bal || 100000) * 0.2));
+  const monthly = Math.max(50000, Math.round((a.income || 500000) * 0.2));
+  const months = Math.max(1, Math.ceil(target / monthly));
+  return { html:`
+      <b>🎯 Cara Menabung Anti Gagal</b><br>
+      1️⃣ <b>Automasi</b> — tiap top up, sisihkan 20% duluan.<br>
+      2️⃣ <b>Pisahkan</b> — taruh tabungan di dompet/akun beda.<br>
+      3️⃣ <b>Target kecil</b> — mulai dari nominal realistis.<br>
+      4️⃣ <b>Dana darurat</b> — minimal 3–6× pengeluaran bulanan.
+      <div class="insight-card">
+        <div class="row"><span>Target kamu</span><b>Rp ${rupiah(target)}</b></div>
+        <div class="row highlight"><span>Nabung/bulan (≈${months} bln)</span><b>Rp ${rupiah(monthly)}</b></div>
+      </div>
+      <span class="hint">💡 Kalau target Rp ${rupiah(target)} terasa berat, pecah jadi target bulanan kecil dulu. Konsisten > besar sesaat.</span>
+  ` };
+}
+
+function resBoros(){
+  const a = analyze(), n = NAME();
+  if(a.txCount === 0) return { html:`Belum ada data transaksi buat saya analisis, ${n}.<span class="hint">📝 Coba lakukan beberapa transaksi dulu ya.</span>` };
+  if(a.outCount === 0) return { html:`Sejauh ini kamu <b>belum ada pengeluaran</b> sama sekali 👍<span class="hint">💡 Bagus! Tetap disiplin — sisihkan 20% dari setiap top up ke tabungan.</span>` };
+  const pct = Math.round(a.burnRatio*100);
+  if(a.burnRatio > 0.8) return { html:`⚠️ <b>Peringatan:</b> kamu sudah pakai <b>${pct}%</b> dari total pemasukan, ${n}.<span class="hint">🔴 Coba review transaksi terakhir — mana yang bisa dikurangi? Fokus ke kebutuhan dulu, tunda keinginan 1 minggu.</span>` };
+  if(a.burnRatio > 0.5) return { html:`Pengeluaran kamu <b>${pct}%</b> dari pemasukan — <b>cukup seimbang</b> 🟡<span class="hint">💡 Masih bisa dihemat. Target idealnya ≤50% untuk kebutuhan pokok saja.</span>` };
+  return { html:`Wah, pengeluaran kamu cuma <b>${pct}%</b> dari pemasukan — <b>hemat banget!</b> 🟢<span class="hint">💡 Pertimbangkan alihkan sisa ke investasi biar uangnya berkembang.</span>` };
+}
+
+function resTransfer(customNum){
+  const amount = customNum || 100000;
+  const fee = FEES.transfer; const total = amount + fee;
+  const pct = ((fee/amount)*100).toFixed(1);
+  return { html:`Untuk transfer <b>Rp ${rupiah(amount)}</b>, biaya adminnya <b>Rp ${rupiah(fee)}</b> — total dipotong <b>Rp ${rupiah(total)}</b>.<span class="hint">💡 Fee kamu setara <b>${pct}%</b> dari nominal transfer. ${pct > 5 ? 'Ini cukup besar! Kalau bisa, gabungkan beberapa transfer jadi satu supaya lebih hemat.' : 'Masih wajar 👍'}</span>` };
+}
+
+function resTarik(customNum){
+  const amount = customNum || 100000;
+  const fee = FEES.withdraw; const total = amount + fee;
+  const pct = ((fee/amount)*100).toFixed(1);
+  return { html:`Untuk tarik <b>Rp ${rupiah(amount)}</b>, biaya admin <b>Rp ${rupiah(fee)}</b> — total dipotong <b>Rp ${rupiah(total)}</b>.<span class="hint">💡 Fee kamu = <b>${pct}%</b>. ${pct > 5 ? 'Terlalu mahal kalau nominalnya kecil! Tahan dulu, tarik saat jumlahnya ≥ Rp 500.000.' : 'Masih oke 👍'}</span>` };
+}
+
+function resTarget(customNum){
+  const a = analyze();
+  const target = customNum || 1000000;
+  const monthly = Math.max(50000, Math.round((a.income || a.bal || 500000) * 0.2));
+  const months = Math.ceil(target / monthly);
+  const years = (months/12).toFixed(1);
+  return { html:`Oke, target kamu <b>Rp ${rupiah(target)}</b>.<div class="insight-card"><div class="row"><span>Nabung/bulan (estimasi)</span><b>Rp ${rupiah(monthly)}</b></div><div class="row"><span>Waktu tercapai</span><b>${months} bulan</b></div><div class="row highlight"><span>≈ ${years} tahun</span><b></b></div></div><span class="hint">💡 Estimasi berbasis 20% dari ${a.income > 0 ? 'pemasukan kamu' : 'saldo kamu saat ini'}. Kalau mau lebih cepat, naikkan persentase tabungan.</span>` };
+}
+
+function resHitung(customNum){
+  const a = analyze();
+  const amount = customNum || a.income || 500000;
+  const perWeek = Math.round(amount / 4);
+  const perMonth = amount;
+  const perYear = amount * 12;
+  return { html:`Kalau kamu punya <b>Rp ${rupiah(amount)}</b>, ini breakdownnya:<div class="insight-card"><div class="row"><span>Per minggu (÷4)</span><b>Rp ${rupiah(perWeek)}</b></div><div class="row"><span>Per bulan</span><b>Rp ${rupiah(perMonth)}</b></div><div class="row highlight"><span>Per tahun (×12)</span><b>Rp ${rupiah(perYear)}</b></div></div><span class="hint">💡 Rumus umum: 50% kebutuhan + 30% keinginan + 20% tabungan. Dari Rp ${rupiah(amount)} → tabungan ideal Rp ${rupiah(Math.round(amount*0.2))}/bulan.</span>` };
+}
+
+function resHutang(){ return { html:`<b>Soal utang & cicilan</b> — aturan sehatnya:<div class="insight-card"><div class="row"><span>Maks cicilan/bulan</span><b>≤ 30% pemasukan</b></div><div class="row"><span>Dana darurat dulu</span><b>3–6× pengeluaran</b></div><div class="row highlight"><span>Lunasi prioritas</span><b>Bunga tertinggi dulu</b></div></div><span class="hint">🔴 Hindari paylater untuk konsumsi (bukan kebutuhan produktif). Bunga 2–3%/bulan = 24–36%/tahun — jauh di atas return investasi manapun.</span>` }; }
+function resTips(){ return { html:`<b>💡 Tips Keuangan Cepat</b><br>1️⃣ Catat semua pengeluaran (NexPay bantu ini).<br>2️⃣ Bayar diri sendiri dulu — sisihkan tabungan sebelum belanja.<br>3️⃣ Hindari utang konsumtif (paylater buat jajan).<br>4️⃣ Review keuangan tiap minggu, bukan tiap tahun.<br>5️⃣ Punya dana darurat sebelum investasi.<span class="hint">🎯 Mau saya bantu hitung target tabungan atau analisis pengeluaran spesifik? Tinggal bilang.</span>` }; }
+function resFreelance(){ return { html:`<b>💼 Pengelolaan keuangan freelance/usaha</b><br>1️⃣ Pisahkan rekening pribadi & bisnis.<br>2️⃣ Sisihkan pajak 0.5% (PP 23) tiap transaksi masuk.<br>3️⃣ Buffer 3 bulan biaya hidup karena pemasukan tidak stabil.<br>4️⃣ Hitung HPP (harga pokok) — jangan asal patok harga.<span class="hint">💡 Rule of thumb: 30% omzet → operasional, 30% → gaji diri sendiri, 20% → buffer, 20% → growth/investasi.</span>` }; }
+function resPemula(){ return { html:`<b>🎓 Panduan pemula keuangan</b><br>Step 1: <b>Catat pengeluaran</b> selama 1 minggu (biar tahu ke mana uang pergi).<br>Step 2: <b>Buat dana darurat</b> minimal Rp 1 juta dulu.<br>Step 3: <b>Bayar utang konsumtif</b> kalau ada.<br>Step 4: <b>Baru investasi</b> — mulai dari reksadana pasar uang (risiko rendah).<span class="hint">💡 Jangan skip step. Investasi sebelum dana darurat aman = resep panik saat pasar turun.</span>` }; }
+function resBingung(){ return { html:`Wajar kok ${NAME()}, banyak orang bingung soal uang. Kita mulai dari yang paling gampang ya.<span class="hint">Coba tanya saya hal sederhana dulu:<br>• "Saldoku berapa?"<br>• "Berapa yang harus aku tabung?"<br>• "Apakah aku boros?"<br>Nanti saya jawab sesuai data kamu.</span>` }; }
+function resBanding(){ return { html:`<b>⚖️ Prinsip memilih instrumen keuangan</b><div class="insight-card"><div class="row"><span>Butuh ≤ 1 tahun</span><b>Reksadana pasar uang / deposito</b></div><div class="row"><span>Butuh 3–5 tahun</span><b>Reksadana campuran / obligasi</b></div><div class="row highlight"><span>Butuh > 5 tahun</span><b>Saham / reksadana saham</b></div></div><span class="hint">💡 Aturan: semakin cepat kamu butuh uangnya, semakin rendah risikonya. Jangan taruh uang dana darurat di saham!</span>` }; }
+function resRisiko(){ return { html:`<b>⚠️ Hierarki risiko investasi (rendah → tinggi)</b><br>Deposito → Reksadana pasar uang → Obligasi/SBN → Reksadana campuran → Saham → Kripto<span class="hint">💡 Semakin tinggi potensi return, semakin tinggi risiko kehilangan pokok. Cocokkan dengan toleransi & waktu kamu.</span>` }; }
+function resPajak(){ return { html:`<b>🧾 Pajak dasar yang perlu kamu tahu</b><div class="insight-card"><div class="row"><span>PTKP karyawan</span><b>Rp 54 juta/tahun</b></div><div class="row"><span>UMKM (PP 23)</span><b>0.5% dari omzet</b></div><div class="row highlight"><span>Bunga deposito</span><b>20% final</b></div></div><span class="hint">💡 Kalau kamu freelance, sisihkan 0.5–2% tiap transaksi masuk ke "rekening pajak" — biar tidak kaget saat lapor SPT.</span>` }; }
+function resPenjelasan(q){
+  const t = norm(q);
+  if(t.includes('inflasi')) return { html:`<b>Inflasi</b> = kenaikan harga barang secara umum. Uang Rp 100.000 hari ini tidak bisa beli barang yang sama 5 tahun lagi. Itu kenapa uang "diam" itu sebenarnya menyusut.<span class="hint">💡 Target minimal investasi = inflasi (~3-4%/tahun) supaya daya beli terjaga.</span>` };
+  if(t.includes('dana darurat')) return { html:`<b>Dana darurat</b> = tabungan khusus untuk keadaan mendesak (sakit, PHK, kecelakaan). Ukurannya 3-6× pengeluaran bulanan.<span class="hint">💡 Simpan di tempat yang likuid (tabungan/reksadana pasar uang), bukan saham.</span>` };
+  if(t.includes('reksadana') || t.includes('investasi')) return { html:`<b>Reksadana</b> = wadah investasi di mana uang kamu dikelola manajer investasi, dan kamu dapat unit penyertaan.<span class="hint">💡 Cocok untuk pemula karena cuma perlu modal kecil (mulai Rp 10.000).</span>` };
+  if(t.includes('bunga') || t.includes('compound')) return { html:`<b>Bunga berbunga (compound)</b> = bunga yang dihasilkan dari bunga sebelumnya. Contoh: Rp 1 juta @5%/tahun → Rp 1,05 jt tahun 1 → Rp 1,1 jt tahun 2 → Rp 1,63 jt di tahun 10.<span class="hint">💡 Albert Einstein menyebutnya "keajaiban dunia ke-8". Waktu adalah kekuatan terbesarmu.</span>` };
+  return null;
+}
+function resGreeting(){ return { html:`Selamat ${TIME_GREET()}, <b>${NAME()}</b>! 👋 Ada yang bisa saya bantu soal keuangan kamu?<span class="hint">Coba tanya: "analisis keuangan saya", "saran budget", atau "apakah saya boros?"</span>` }; }
+function resThanks(){ return { html:`Sama-sama, ${NAME()}! 🙌<span class="hint">Kalau ada pertanyaan lain soal keuangan, tanya kapan saja ya.</span>` }; }
+function resTopup(){ return { html:`Top up di NexPay <b>gratis</b> — tidak ada biaya admin.<span class="hint">💡 Tips: top up dalam nominal lebih besar (misal Rp 500.000 sekaligus) daripada Rp 50.000 lima kali — supaya kamu lebih sadar saat belanja.</span>` }; }
+function resBayar(){ return { html:`Bayar tagihan di NexPay kena fee <b>Rp 1.500</b> per transaksi.<span class="hint">💡 Kalau punya beberapa tagihan (listrik + air + internet), cek apakah bisa digabung supaya hemat fee. Kalau tidak bisa, prioritas yang paling urgent dulu.</span>` }; }
+
+function respond(userText){
+  const intents = detectIntent(userText);
+  const topIntent = intents[0];
+  const num = extractNumber(userText);
+
+  ctx.history.push(userText);
+  if(ctx.history.length > 5) ctx.history.shift();
+
+  if(num && !topIntent.match(/saldo|analisis|nabung|boros|transfer|tarik|target|hitung|budget/) && ctx.lastIntent){
+    const followup = { budget: resBudget, nabung: resNabung, transfer: resTransfer, tarik: resTarik, target: resTarget, hitung: resHitung };
+    if(followup[ctx.lastIntent]) { ctx.lastNum = num; return followup[ctx.lastIntent](num); }
+  }
+
+  switch(topIntent){
+    case 'saldo': ctx.lastIntent='saldo'; return resSaldo();
+    case 'analisis': ctx.lastIntent='analisis'; return resAnalisis();
+    case 'budget': ctx.lastIntent='budget'; ctx.lastNum = num; return resBudget(num);
+    case 'nabung': ctx.lastIntent='nabung'; ctx.lastNum = num; return resNabung(num);
+    case 'boros': ctx.lastIntent='boros'; return resBoros();
+    case 'transfer': ctx.lastIntent='transfer'; ctx.lastNum = num; return resTransfer(num);
+    case 'tarik': ctx.lastIntent='tarik'; ctx.lastNum = num; return resTarik(num);
+    case 'target': ctx.lastIntent='target'; ctx.lastNum = num; return resTarget(num);
+    case 'hitung': ctx.lastIntent='hitung'; ctx.lastNum = num; return resHitung(num);
+    case 'kalkulasi': ctx.lastIntent='hitung'; ctx.lastNum = num; return resHitung(num);
+    case 'hutang': return resHutang();
+    case 'tips': return resTips();
+    case 'freelance': return resFreelance();
+    case 'pemula': return resPemula();
+    case 'bingung': return resBingung();
+    case 'banding': return resBanding();
+    case 'risiko': return resRisiko();
+    case 'pajak': return resPajak();
+    case 'topup': return resTopup();
+    case 'bayar': return resBayar();
+    case 'greeting': return resGreeting();
+    case 'thanks': return resThanks();
+    case 'penjelasan': { const r = resPenjelasan(userText); if(r) return r; return resTips(); }
+  }
+
+  if(ctx.lastIntent){
+    const followups = {
+      budget: `Mau saya ubah basis budget-nya? Sebut nominal, misal "kalau 3 juta?".`,
+      nabung: `Mau saya hitungkan target tabungan spesifik? Sebut nominal, misal "target 5 juta".`,
+      transfer: `Kalau mau tahu fee untuk nominal lain, sebut saja — misal "kalau transfer 500rb?".`,
+      tarik: `Kalau mau tahu fee untuk nominal lain, sebut saja — misal "kalau tarik 1 juta?".`,
+      target: `Sebut nominal targetmu, nanti saya hitung berapa lama tercapai.`,
+      hitung: `Sebut nominal yang mau dihitung.`,
+      analisis: `Coba tanya "apakah saya boros?" atau "saran budget" untuk lanjut.`
+    };
+    if(followups[ctx.lastIntent]) return { html: followups[ctx.lastIntent] };
+  }
+
+  return { html:`Hmm, saya belum paham pertanyaan itu, ${NAME()}. 🤔<br><br>Coba tanya hal seperti:<br>• "<b>Analisis keuangan saya</b>"<br>• "<b>Saran budget</b>" atau "<b>kalau 5 juta?</b>"<br>• "<b>Cara menabung</b>"<br>• "<b>Apakah saya boros?</b>"<br>• "<b>Fee transfer 500rb berapa?</b>"<span class="hint">💡 Atau pakai tombol cepat di bawah kolom ketik.</span>` };
+}
+
+function addMsg(text, role='ai', html=null){
+  const body = document.getElementById('aiBody');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + role;
+  div.innerHTML = html || text;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  return div;
+}
+function showTyping(){
+  const body = document.getElementById('aiBody');
+  const t = document.createElement('div');
+  t.className = 'typing'; t.id = 'typingIndicator';
+  t.innerHTML = '<span></span><span></span><span></span>';
+  body.appendChild(t);
+  body.scrollTop = body.scrollHeight;
+}
+function hideTyping(){ const t = document.getElementById('typingIndicator'); if(t) t.remove(); }
+function aiReply(html, delay=900){
+  return new Promise(resolve => {
+    showTyping();
+    setTimeout(() => { hideTyping(); addMsg(null, 'ai', html); resolve(); }, delay);
+  });
+}
+
+const QUICK = [
+  { label: '💰 Analisis keuangan', q: 'analisis' },
+  { label: '📊 Saran budget', q: 'budget' },
+  { label: '🎯 Cara menabung', q: 'nabung' },
+  { label: '📈 Cek saldo', q: 'saldo' },
+  { label: '⚠️ Apakah saya boros?', q: 'boros' },
+  { label: '💸 Fee transfer', q: 'transfer' },
+  { label: '🏦 Fee tarik', q: 'tarik' },
+];
+function renderQuickReplies(){
+  document.getElementById('quickReplies').innerHTML = QUICK.map(q =>
+    `<div class="qr" onclick="askQuick('${q.q}')">${q.label}</div>`
+  ).join('');
+}
+function askQuick(q){
+  const map = { analisis:'Analisis keuangan saya', budget:'Saran budget', nabung:'Cara menabung', saldo:'Saldo saya berapa?', boros:'Apakah saya boros?', transfer:'Fee transfer berapa?', tarik:'Fee tarik saldo berapa?' };
+  document.getElementById('aiInput').value = map[q] || q;
+  sendAI();
+}
+function greetUser(){
+  renderQuickReplies();
+  const name = NAME(), p = TIME_GREET();
+  showTyping();
+  setTimeout(async () => {
+    hideTyping();
+    addMsg(null, 'ai', `Halo <b>${name}</b>! 👋 Saya <b>NexAI</b>, asisten keuangan pribadi kamu.`);
+    await aiReply(`Selamat ${p}! Saya bisa <b>menganalisis kondisi keuangan</b>, <b>saran budget</b>, atau menjawab pertanyaan spesifik.`, 700);
+    await aiReply(`Coba tanya apa saja — misal "<i>kalau saya mau nabung 5 juta berapa bulan?</i>" atau "<i>fee transfer 500rb berapa?</i>". Saya jawab berdasarkan data kamu. 🎯`, 850);
+  }, 600);
+}
+function toggleAI(forceClose){
+  const panel = document.getElementById('aiPanel');
+  const backdrop = document.getElementById('aiBackdrop');
+  const shouldClose = forceClose === true || aiOpen;
+  if(shouldClose){
+    panel.classList.remove('show'); backdrop.classList.remove('show'); aiOpen = false;
+  } else {
+    panel.classList.add('show'); backdrop.classList.add('show'); aiOpen = true;
+    if(!aiInitialized){ aiInitialized = true; greetUser(); }
+  }
+}
+function sendAI(){
+  const input = document.getElementById('aiInput');
+  const q = input.value.trim();
+  if(!q) return;
+  input.value = '';
+  addMsg(q, 'user');
+  const reply = respond(q);
+  aiReply(reply.html, 750);
+}
+
+/* ============ INIT ============ */
+(function init(){
+  load();
+  if(state.user){
+    document.getElementById('inName').value = state.user.name;
+    document.getElementById('inPhone').value = state.user.phone;
+    enterApp();
+    lastBalance = state.balance;
+  }
+})();
+document.getElementById('inPhone').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
